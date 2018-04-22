@@ -1,0 +1,5 @@
+Parameters which defines edge,,Params which defines edge property,,Comments
+Start node,End node,Property name,Property value,
+Haas VF-5,Haas ST-10,Load,0.27,Load of the end node machine
+Haas VF-5,Haas ST-10,Power,11.2,Power of the end node machine
+Haas VF-5,Haas ST-10,Distance,13,Distance betwee to machines
