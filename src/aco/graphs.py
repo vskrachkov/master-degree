@@ -1,11 +1,14 @@
 import csv
 import random
 import itertools
-import networkx as nx
-import matplotlib.pyplot as plt
 import time
+import functools
+import copy
 
-from copy import copy
+import matplotlib.pyplot as plt
+import networkx as nx
+import pants
+
 
 MAX_EDGE_WEIGHT = 25
 MIN_EDGE_WEIGHT = 12
@@ -37,6 +40,7 @@ def plot_weighted_graph(graph):
 
 class Graph(nx.Graph):
     def __init__(self, *args, **kwargs):
+        self.__max_val_map = {}
         super().__init__(*args, **kwargs)
 
     @classmethod
@@ -76,8 +80,12 @@ class Graph(nx.Graph):
             for i, *attrs in enumerate(row[1:]):
                 edges = [(n, neighbor) for neighbor in self.neighbors(n)]
                 for attr in attrs:
+                    attr = float(attr)
                     for e in edges:
                         self.edges[e][head_row[i]] = attr
+                        _p = self.__max_val_map.get(head_row[i])
+                        if _p is None or attr > _p:
+                            self.__max_val_map[head_row[i]] = attr
         f.close()
 
     def load_relative_properties(self, csv_file_path):
@@ -88,8 +96,12 @@ class Graph(nx.Graph):
             from_n, to_n = row[0], row[1]
             for i, *attrs in enumerate(row[2:]):
                 for attr in attrs:
+                    attr = float(attr)
                     self.edges[(from_n, to_n)] [head_row[i]] = attr
                     self.edges[(to_n, from_n)] [head_row[i]] = attr
+                    _p = self.__max_val_map.get(head_row[i])
+                    if _p is None or attr > _p:
+                        self.__max_val_map[head_row[i]] = attr
         f.close()
 
     def show_on_plot(self):
@@ -97,18 +109,37 @@ class Graph(nx.Graph):
         nx.draw(self, pos)
         labels = nx.get_edge_attributes(self, '__weight__')
         nx.draw_networkx_edge_labels(self, pos, edge_labels=labels)
+        nx.draw_networkx_labels(self, pos)
         plt.show()
 
     def calc_weight(self):
         for e in self.edges:
-            attrs = copy(self.edges[e])
+            attrs = copy.copy(self.edges[e])
             attrs.pop('__weight__', None)
-            weight = sum([int(a) for a in attrs.values()]) if attrs else 0
-            self.edges[e]['__weight__'] = weight
+            w = []
+            for key, attr in attrs.items():
+                w.append(attr / self.__max_val_map[key])
+            weight = functools.reduce(lambda x, y: x*y, w)
+            self.edges[e]['__weight__'] = round(weight, 3)
+
+    def get_weight(self, start, end):
+        return self.edges[(start, end)].get('__weight__')
+
+    def _solve(self):
+        world = pants.World(list(self.nodes), self.get_weight)
+        solver = pants.Solver()
+        return solver, world
+
+    def solutions(self):
+        solver, world = self._solve()
+        return solver.solutions(world)
+
+    def solution(self):
+        solver, world = self._solve()
+        return solver.solve(world)
 
 
 if __name__ == '__main__':
-    # G = Graph.create_complete(n=5)
     G = Graph.initialize_complete_graph('accets/csv/machine_list.csv')
     G.load_own_attrs('accets/csv/own_attrs.csv')
     G.load_relative_properties('accets/csv/related_attrs.csv')
@@ -116,4 +147,9 @@ if __name__ == '__main__':
 
     # path = G.dump_to_file()
     # G = Graph.load_from_file(path)
+
+    print(G.solution().distance)
+    for sol in G.solutions():
+        print(sol.distance)
+
     G.show_on_plot()

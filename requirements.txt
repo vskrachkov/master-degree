@@ -2,3 +2,4 @@ matplotlib
 networkx
 pyyaml
 PyQt5
+ACO-Pants
