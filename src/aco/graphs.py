@@ -51,8 +51,8 @@ class Graph(nx.Graph):
     def load_from_file(cls, file_path):
         return nx.read_gpickle(file_path)
 
-    def dump_to_file(self):
-        file_name = f'accets/graphs/{time.time()}.gz'
+    def dump_to_file(self, file_name=None):
+        file_name = file_name or f'accets/graphs/{time.time()}.gz'
         nx.write_gpickle(self, file_name)
         return file_name
 

@@ -9,10 +9,14 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont, QIcon
 
-HOME_DIR = expanduser('~')
+from aco.graphs import Graph
+
+# HOME_DIR = expanduser('~')
+HOME_DIR = expanduser('')
 
 
 class Signals(QObject):
+    machine_list_loaded = pyqtSignal()
     graph_built = pyqtSignal()
     props_loaded = pyqtSignal()
     solved = pyqtSignal()
@@ -22,13 +26,18 @@ class MainUI(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._G = None
+        self._result = {}
+
         # connect signal handlers
         self.signals = Signals()
         self.signals.graph_built.connect(self.on_graph_built)
+        self.signals.machine_list_loaded.connect(self.on_machine_list_loaded)
         self.signals.props_loaded.connect(self.on_props_loaded)
         self.signals.solved.connect(self.on_solved)
 
         # UI elements
+        self.LoadMachineListBtn = None
         self.LoadOwnPropsBtn = None
         self.LoadRelPropsBtn = None
         self.BuildGraphBtn = None
@@ -45,15 +54,22 @@ class MainUI(QWidget):
         self.initUI()
 
     def initUI(self):
+        self.LoadMachineListBtn = QPushButton('Load machine list from file', self)
+        self.LoadMachineListBtn.setIcon(QIcon('accets/ico/xlsx.png'))
+        self.LoadMachineListBtn.resize(self.LoadMachineListBtn.sizeHint())
+        self.LoadMachineListBtn.clicked.connect(self.load_machine_list)
+
         self.LoadOwnPropsBtn = QPushButton('Load own properties from file', self)
         self.LoadOwnPropsBtn.setIcon(QIcon('accets/ico/xlsx.png'))
         self.LoadOwnPropsBtn.resize(self.LoadOwnPropsBtn.sizeHint())
         self.LoadOwnPropsBtn.clicked.connect(self.load_own_props)
+        self.LoadOwnPropsBtn.setEnabled(False)
 
         self.LoadRelPropsBtn = QPushButton('Load related properties from file', self)
         self.LoadRelPropsBtn.setIcon(QIcon('accets/ico/xlsx.png'))
         self.LoadRelPropsBtn.resize(self.LoadRelPropsBtn.sizeHint())
         self.LoadRelPropsBtn.clicked.connect(self.load_rel_props)
+        self.LoadRelPropsBtn.setEnabled(False)
 
         self.BuildGraphBtn = QPushButton('Build graph', self)
         self.BuildGraphBtn.setIcon(QIcon('accets/ico/build.png'))
@@ -105,37 +121,43 @@ class MainUI(QWidget):
         self.ShowResultPathBtn = QPushButton('Show the shortest path')
         self.ShowResultPathBtn.setIcon(QIcon('accets/ico/xlsx.png'))
         self.ShowResultPathBtn.resize(self.ShowResultPathBtn.sizeHint())
-        self.ShowResultPathBtn.clicked.connect(self.show_result)
+        self.ShowResultPathBtn.clicked.connect(self.show_shortest_path)
         self.ShowResultPathBtn.setEnabled(False)
 
+        # zero row
+        self.LoadMachineListBtn.move(10, 10)
+
         # first row
-        self.LoadOwnPropsBtn.move(10, 10)
-        self.LoadRelPropsBtn.move(250, 10)
+        self.LoadOwnPropsBtn.move(10, 40)
+        self.LoadRelPropsBtn.move(250, 40)
 
         # second row
-        self.BuildGraphBtn.move(10, 40)
-        self.DumpGraphToFileBtn.move(140, 40)
-        self.LoadGraphFromFileBtn.move(310, 40)
+        self.BuildGraphBtn.move(10, 70)
+        self.DumpGraphToFileBtn.move(140, 70)
+        self.LoadGraphFromFileBtn.move(310, 70)
 
         # third row
-        self.ShowGraphBtn.move(10, 70)
-        self.SolveBtn.move(140, 70)
+        self.ShowGraphBtn.move(10, 100)
+        self.SolveBtn.move(140, 100)
 
         # fourth row
-        self.SaveResultToFileBtn.move(10, 100)
+        self.SaveResultToFileBtn.move(10, 130)
 
         # fifth row
-        self.LogsText.move(10, 130)
-        self.ResultText.move(460, 130)
+        self.LogsText.move(10, 160)
+        self.ResultText.move(460, 160)
 
         QToolTip.setFont(QFont('Arial', 14))
 
-        self.msg('before button creation')
-
         self.setWindowTitle('ACO Tool')
         self.setFixedWidth(700)
-        self.setFixedHeight(440)
+        self.setFixedHeight(470)
         self.show()
+        self.msg('Initialize application')
+
+    def on_machine_list_loaded(self):
+        self.LoadOwnPropsBtn.setEnabled(True)
+        self.LoadRelPropsBtn.setEnabled(True)
 
     def on_graph_built(self):
         self.DumpGraphToFileBtn.setEnabled(True)
@@ -148,33 +170,66 @@ class MainUI(QWidget):
     def on_solved(self):
         self.SaveResultToFileBtn.setEnabled(True)
 
+    def load_machine_list(self):
+        f, _ = QFileDialog.getOpenFileName(self, 'Open csv file', HOME_DIR)
+        if f:
+            self._G = Graph.initialize_complete_graph(f)
+            self.signals.machine_list_loaded.emit()
+            self.msg('Load machine list')
+
     def load_own_props(self):
-        self.msg('Load own props')
-        self.signals.props_loaded.emit()
+        f, _ = QFileDialog.getOpenFileName(self, 'Open csv file', HOME_DIR)
+        if f:
+            self._G.load_own_attrs(f)
+            self.signals.props_loaded.emit()
+            self.msg('Load own props')
 
     def load_rel_props(self):
-        self.msg('Load related props')
-        self.signals.props_loaded.emit()
+        f, _ = QFileDialog.getOpenFileName(self, 'Open csv file', HOME_DIR)
+        if f:
+            self._G.load_relative_properties(f)
+            self.signals.props_loaded.emit()
+            self.msg('Load related props')
 
     def build_graph(self):
+        self._G.calc_weight()
         self.signals.graph_built.emit()
 
     def dump_graph(self):
-        pass
+        filename, _ = QFileDialog.getSaveFileName(self, 'Save File')
+        self._G.dump_to_file(filename)
 
     def load_graph(self):
-        pass
+        f, _ = QFileDialog.getOpenFileName(self, 'Open csv file', HOME_DIR)
+        if f:
+            self._G = Graph.load_from_file(f)
+            self.signals.graph_built.emit()
 
     def show_graph(self):
-        pass
+        self._G.show_on_plot()
 
     def solve(self):
+        solution = self._G.solution()
+        self._result = {
+            'alpha': solution.alpha,
+            'beta': solution.beta,
+            'distance': solution.distance,
+            'path': solution.path,
+            'start': solution.start,
+            'tour': solution.tour,
+            'traveled': solution.traveled,
+            'unvisited': solution.unvisited,
+            'visited': solution.visited
+        }
+        self.ResultText.append('Result:')
+        for key, val in self._result.items():
+            self.ResultText.append(f'{key}: {val}')
         self.signals.solved.emit()
 
     def save_result(self):
         pass
 
-    def show_result(self):
+    def show_shortest_path(self):
         pass
 
     def openFileDialog(self):
