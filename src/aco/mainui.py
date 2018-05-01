@@ -20,6 +20,7 @@ class Signals(QObject):
     graph_built = pyqtSignal()
     props_loaded = pyqtSignal()
     solved = pyqtSignal()
+    graph_load = pyqtSignal()
 
 
 class MainUI(QWidget):
@@ -35,6 +36,7 @@ class MainUI(QWidget):
         self.signals.machine_list_loaded.connect(self.on_machine_list_loaded)
         self.signals.props_loaded.connect(self.on_props_loaded)
         self.signals.solved.connect(self.on_solved)
+        self.signals.graph_load.connect(self.on_graph_load)
 
         # UI elements
         self.LoadMachineListBtn = None
@@ -58,6 +60,7 @@ class MainUI(QWidget):
         self.LoadMachineListBtn.setIcon(QIcon('accets/ico/xlsx.png'))
         self.LoadMachineListBtn.resize(self.LoadMachineListBtn.sizeHint())
         self.LoadMachineListBtn.clicked.connect(self.load_machine_list)
+        self.LoadMachineListBtn.setEnabled(True)
 
         self.LoadOwnPropsBtn = QPushButton('Завантажити характеристики верстатів', self)
         self.LoadOwnPropsBtn.setIcon(QIcon('accets/ico/xlsx.png'))
@@ -172,6 +175,9 @@ class MainUI(QWidget):
         self.SaveResultToFileBtn.setEnabled(True)
         self.ShowShortestPathBtn.setEnabled(True)
 
+    def on_graph_load(self):
+        self.LoadMachineListBtn.setEnabled(False)
+
     def load_machine_list(self):
         f, _ = QFileDialog.getOpenFileName(self, 'Open csv file', HOME_DIR)
         if f:
@@ -210,6 +216,7 @@ class MainUI(QWidget):
         if f:
             self._G = Graph.load_from_file(f)
             self.signals.graph_built.emit()
+            self.signals.graph_load.emit()
             self.msg('Граф завантажено')
 
     def show_graph(self):
