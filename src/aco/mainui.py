@@ -1,3 +1,4 @@
+#! /Users/vs/Documents/Projects/KPI/master-degree/.env/bin/python
 import sys
 import datetime
 from os.path import expanduser
